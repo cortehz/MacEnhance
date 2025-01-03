@@ -2,7 +2,17 @@ import SwiftUI
 import Combine
 
 class ClipboardViewModel: ObservableObject {
-    @Published var clipboardHistory: [ClipboardItem] = []
+    @Published var clipboardHistory: [ClipboardItem] = [] {
+        didSet {
+            filterHistory()
+        }
+    }
+    @Published var searchQuery: String = "" {
+        didSet {
+            filterHistory()
+        }
+    }
+    @Published var filteredClipboardHistory: [ClipboardItem] = []
 
     private var clipboardChangeCancellable: AnyCancellable?
 
@@ -13,6 +23,7 @@ class ClipboardViewModel: ObservableObject {
             .sink { [weak self] _ in
                 self?.checkClipboard()
             }
+        filterHistory()
     }
 
     private func checkClipboard() {
@@ -41,5 +52,25 @@ class ClipboardViewModel: ObservableObject {
     func copyToClipboard(_ item: ClipboardItem) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(item.content, forType: .string)
+    }
+    
+    func clearHistory() {
+        clipboardHistory.removeAll()
+        UserDefaults.standard.removeObject(forKey: "ClipboardHistory")
+    }
+    
+    func deleteItem(_ item: ClipboardItem) {
+        if let index = clipboardHistory.firstIndex(where: { $0.id == item.id }) {
+            clipboardHistory.remove(at: index)
+            saveClipboardHistory()
+        }
+    }
+    
+    private func filterHistory() {
+        if searchQuery.isEmpty {
+            filteredClipboardHistory = clipboardHistory
+        } else {
+            filteredClipboardHistory = clipboardHistory.filter { $0.content.lowercased().contains(searchQuery.lowercased()) }
+        }
     }
 }
